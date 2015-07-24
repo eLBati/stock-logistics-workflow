@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-#    Copyright (C) 2013 Agile Business Group sagl (<http://www.agilebg.com>)
+#    Copyright (C) 2012 BREMSKERL-REIBBELAGWERKE EMMERLING GmbH & Co. KG
+#    Author Marco Dieckhoff
+#    Copyright (C) 2013 Agile Business Group (<http://www.agilebg.com>)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -17,4 +19,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-from . import stock_partial_picking
+
+from . import (
+    model,
+    wizard,
+)

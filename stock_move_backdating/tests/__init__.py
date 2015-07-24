@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 ##############################################################################
 #
-#    Copyright (C) 2013 Agile Business Group sagl (<http://www.agilebg.com>)
+#    Copyright (C) 2012 BREMSKERL-REIBBELAGWERKE EMMERLING GmbH & Co. KG
+#    Author Marco Dieckhoff
+#    Copyright (C) 2013 Agile Business Group  (<http://www.agilebg.com>)
+#    Copyright (C) 2015 Savoir-faire Linux (<http://www.savoirfairelinux.com>)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -18,20 +21,8 @@
 #
 ##############################################################################
 
-from openerp.osv import orm
+from . import test_stock_move_backdating
 
-
-class account_move(orm.Model):
-    _inherit = "account.move"
-
-    def create(self, cr, uid, vals, context=None):
-        if context is None:
-            context = {}
-        period_obj = self.pool.get('account.period')
-        if context.get('move_date'):
-            period_ids = period_obj.find(
-                cr, uid, dt=context['move_date'], context=context)
-            if period_ids:
-                vals['period_id'] = period_ids[0]
-                vals['date'] = context['move_date']
-        return super(account_move, self).create(cr, uid, vals, context=context)
+checks = [
+    test_stock_move_backdating
+]
