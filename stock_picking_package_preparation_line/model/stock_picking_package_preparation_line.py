@@ -3,6 +3,7 @@
 #
 #    Author: Francesco Apruzzese
 #    Copyright 2015 Apulia Software srl
+#    Copyright 2015 Lorenzo Battistini - Agile Business Group
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -36,16 +37,23 @@ class StockPickingPackagePreparationLine(models.Model):
                               ondelete='cascade')
     product_id = fields.Many2one('product.product', string='Product')
     product_uom_qty = fields.Float(
-        digits_compute=dp.get_precision('Product Unit of Measure'))
+        digits_compute=dp.get_precision('Product Unit of Measure'),
+        help="If you change this quantity for a 'ready' picking, the system "
+             "will not generate a back order, but will just deliver the new "
+             "quantity")
     product_uom = fields.Many2one('product.uom')
     sequence = fields.Integer()
     note = fields.Text()
 
     @api.multi
     def write(self, values):
-        res = super(StockPickingPackagePreparationLine, self).write(values)
+        super(StockPickingPackagePreparationLine, self).write(values)
         if 'product_uom_qty' in values and self.move_id:
-            self.move_id.product_uom_qty = values['product_uom_qty']
+            if self.move_id.product_uom_qty != values['product_uom_qty']:
+                self.move_id.product_uom_qty = values['product_uom_qty']
+                # perform a new reservation with the new quantity
+                self.move_id.picking_id.do_unreserve()
+                self.move_id.picking_id.action_assign()
 
     @api.onchange('product_id')
     def _onchange_product_id(self):
@@ -102,8 +110,7 @@ class StockPickingPackagePreparation(models.Model):
         copy=False,
         states=FIELDS_STATES)
 
-    @api.model
-    def create(self, values):
+    def _update_line_ids(self, values):
         # ----- Create a PackagePreparationLine for every stock move
         #       in the pickings added to PackagePreparation
         if values.get('picking_ids', False):
@@ -114,20 +121,16 @@ class StockPickingPackagePreparation(models.Model):
                 values.update({
                     'line_ids': [(0, 0, v) for v in package_preparation_lines]
                 })
+        return values
+
+    @api.model
+    def create(self, values):
+        values = self._update_line_ids(values)
         return super(StockPickingPackagePreparation, self).create(values)
 
     @api.multi
     def write(self, values):
-        # ----- Create a PackagePreparationLine for every stock move
-        #       in the pickings added to PackagePreparation
-        if values.get('picking_ids', False):
-            package_preparation_lines = self.env[
-                'stock.picking.package.preparation.line'
-                ]._prepare_lines_from_pickings(values['picking_ids'][0][2])
-            if package_preparation_lines:
-                values.update({
-                    'line_ids': [(0, 0, v) for v in package_preparation_lines]
-                })
+        values = self._update_line_ids(values)
         return super(StockPickingPackagePreparation, self).write(values)
 
     @api.multi
@@ -173,14 +176,14 @@ class StockPickingPackagePreparation(models.Model):
                 # ----- Show an error if a picking is not confirmed
                 if picking.state != 'confirmed':
                     raise exceptions.Warning(
-                        _('Impossibile to create confirmed picking. \
-Please Check products availability!'))
+                        _('Impossible to create confirmed picking. '
+                          'Please Check products availability!'))
                 picking.action_assign()
                 # ----- Show an error if a picking is not assigned
                 if picking.state != 'assigned':
                     raise exceptions.Warning(
-                        _('Impossibile to create confirmed picking. \
-Please Check products availability!'))
+                        _('Impossible to create confirmed picking. '
+                          'Please Check products availability!'))
                 # ----- Add the relation between the new picking
                 #       and PackagePreparation
                 package.picking_ids = [(4, picking.id)]
